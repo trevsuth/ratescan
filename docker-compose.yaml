@@ -1,0 +1,72 @@
+services:
+  mongo:
+    image: mongo:7
+    container_name: ratescan-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ratescan-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+
+  nats:
+    image: nats:2.10
+    container_name: ratescan-nats
+    ports:
+      - "4222:4222" # client
+      - "8222:8222" # monitoring
+    command: >
+      -js
+      -sd /data
+      -m 8222
+    volumes:
+      - nats_data:/data
+
+  api:
+    build: ./backend
+    container_name: ratescan-api
+    environment:
+      - MONGO_URI=mongodb://mongo:27017/ratescan
+      - NATS_URL=nats://nats:4222
+      - OLLAMA_URL=http://ollama:11434
+    depends_on:
+      - mongo
+      - nats
+      - ollama
+    ports:
+      - "8000:8000"
+
+  worker:
+    build: ./backend
+    container_name: ratescan-worker
+    command: ["python", "-m", "app.worker.main"]
+    environment:
+      - MONGO_URI=mongodb://mongo:27017/ratescan
+      - NATS_URL=nats://nats:4222
+      - OLLAMA_URL=http://ollama:11434
+      - WORKER_ID=worker-1
+    depends_on:
+      - mongo
+      - nats
+      - ollama
+
+  frontend:
+    build: ./frontend
+    container_name: ratescan-frontend
+    environment:
+      - NEXT_PUBLIC_API_BASE=http://localhost:8000
+    depends_on:
+      - api
+    ports:
+      - "3000:3000"
+
+volumes:
+  mongo_data:
+  ollama_data:
+  nats_data:

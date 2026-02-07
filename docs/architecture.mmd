@@ -1,0 +1,17 @@
+flowchart LR
+    FE[Frontend<br/>(Next.js / UI)]
+    API[API<br/>(FastAPI)]
+    NATS[NATS JetStream<br/>(Job Queue)]
+    WORKER[Worker<br/>(Job Executor)]
+    MONGO[MongoDB<br/>(System of Record)]
+    OLLAMA[Ollama<br/>(CPU-only LLM)]
+
+    FE -->|HTTP| API
+    API -->|Publish Jobs| NATS
+    WORKER -->|Pull Jobs| NATS
+    WORKER -->|Write Artifacts| MONGO
+    API -->|Read / Query| MONGO
+    WORKER -->|LLM Calls| OLLAMA
+
+    %% Optional event flow
+    WORKER -.->|Status Events| NATS
